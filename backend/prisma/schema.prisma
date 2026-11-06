@@ -1,0 +1,866 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AdmissionStatus {
+  ADMITTED
+  BILLING
+  DISCHARGED
+  CANCELLED
+}
+
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  BLOCKED
+}
+
+enum OccupancyStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ServiceCategory {
+  ROOM_RENT
+  NURSING
+  RESIDENT_DOCTOR
+  TREATING_DOCTOR
+  SPECIALIST_CONSULTATION
+  CATH_LAB
+  OPERATION_THEATRE
+  PROCEDURE
+  ANESTHETIST
+  MEDICAL_IMPLANT
+  PHARMACY
+  CONSUMABLES
+  LABORATORY
+  RADIOLOGY
+  MEDICAL_RECORDS
+  OTHER
+}
+
+enum ChargeUnit {
+  PER_DAY
+  PER_VISIT
+  PER_PROCEDURE
+  PER_ITEM
+  PER_UNIT
+  LUMP_SUM
+  AS_BILLED
+}
+
+enum ChargeStatus {
+  DRAFT
+  BILLED
+  CANCELLED
+}
+
+enum InvoicePurpose {
+  OPD
+  INTERIM
+  FINAL
+  ADJUSTMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CREDIT_CARD
+  DEBIT_CARD
+  NET_BANKING
+  BANK_TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentKind {
+  ADVANCE
+  SETTLEMENT
+  PARTIAL
+  OTHER
+}
+
+enum AdvanceStatus {
+  OPEN
+  PARTIALLY_ALLOCATED
+  FULLY_ALLOCATED
+  REFUNDED
+  CANCELLED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum NumberSeriesKind {
+  UHID
+  IP
+  INVOICE_IP
+  INVOICE_OP
+  RECEIPT
+  REFUND
+  CREDIT_NOTE
+}
+
+enum PricingMode {
+  EXCLUSIVE
+  INCLUSIVE
+}
+
+model Hospital {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  name                 String
+  addressLine1         String
+  addressLine2         String?
+  city                 String
+  state                String
+  pincode              String
+  phone                String?
+  email                String?
+  registrationNumber   String?
+  gstin                String?
+  identifierLabel      String?  // e.g. ROHINI ID
+  identifierValue      String?
+  logoUrl             String?
+  invoiceFooter        String?
+  declarationText      String?
+  defaultNotes         String?
+  authorizedSignatory  String?
+  invoicePrefix        String   @default("HOSP")
+  financialYearStartMonth Int   @default(4) // April
+  timezone             String   @default("Asia/Kolkata")
+  losChargingPolicy    String   @default("CALENDAR_DAY") // CALENDAR_DAY | HOURS_24 | CUSTOM
+  isDemo               Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  users            User[]
+  patients         Patient[]
+  departments      Department[]
+  practitioners    Practitioner[]
+  wards            Ward[]
+  beds             Bed[]
+  admissions       Admission[]
+  taxProfiles      TaxProfile[]
+  serviceItems     ServiceItem[]
+  tariffs          Tariff[]
+  numberSeries     NumberSeries[]
+  charges          AdmissionCharge[]
+  invoices         Invoice[]
+  payments         Payment[]
+  advances         Advance[]
+  refunds          Refund[]
+  auditLogs        AuditLog[]
+  rooms            Room[]
+  cashierSessions  CashierSession[]
+  dailyClosings    DailyClosing[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  hospitalId   String
+  email        String
+  username     String
+  passwordHash String
+  name         String
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  roles    UserRole[]
+  payments Payment[] @relation("ReceivedBy")
+  advances Advance[] @relation("AdvanceReceivedBy")
+  refundsApproved Refund[] @relation("RefundApprovedBy")
+  auditLogs AuditLog[]
+  invoicesFinalized Invoice[] @relation("FinalizedBy")
+  cashierSessions CashierSession[]
+
+  @@unique([hospitalId, email])
+  @@unique([hospitalId, username])
+  @@index([hospitalId])
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  hospitalId  String?
+  code        String
+  name        String
+  description String?
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([hospitalId, code])
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  code        String @unique
+  description String?
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Patient {
+  id          String        @id @default(uuid())
+  hospitalId  String
+  uhid        String
+  firstName   String
+  lastName    String?
+  displayName String
+  sex         Sex           @default(UNKNOWN)
+  dob         DateTime?
+  ageYears    Int?
+  phone       String?
+  email       String?
+  addressLine1 String?
+  addressLine2 String?
+  city        String?
+  state       String?
+  pincode     String?
+  status      PatientStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  hospital     Hospital            @relation(fields: [hospitalId], references: [id])
+  identifiers  PatientIdentifier[]
+  admissions   Admission[]
+  encounters   Encounter[]
+  invoices     Invoice[]
+  payments     Payment[]
+  advances     Advance[]
+  refunds      Refund[]
+
+  @@unique([hospitalId, uhid])
+  @@index([hospitalId, phone])
+  @@index([hospitalId, displayName])
+}
+
+model PatientIdentifier {
+  id         String @id @default(uuid())
+  hospitalId String
+  patientId  String
+  system     String
+  value      String
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, system, value])
+  @@index([patientId])
+}
+
+model Department {
+  id         String  @id @default(uuid())
+  hospitalId String
+  code       String
+  name       String
+  active     Boolean @default(true)
+
+  hospital     Hospital       @relation(fields: [hospitalId], references: [id])
+  practitioners Practitioner[]
+  admissions   Admission[]
+  encounters   Encounter[]
+  serviceItems ServiceItem[]
+
+  @@unique([hospitalId, code])
+}
+
+model Practitioner {
+  id               String  @id @default(uuid())
+  hospitalId       String
+  name             String
+  qualification    String?
+  registrationNo   String?
+  departmentId     String?
+  active           Boolean @default(true)
+
+  hospital   Hospital    @relation(fields: [hospitalId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  admissions Admission[]
+  encounters Encounter[]
+  charges    AdmissionCharge[]
+
+  @@index([hospitalId, name])
+}
+
+model Ward {
+  id         String @id @default(uuid())
+  hospitalId String
+  code       String
+  name       String
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  rooms    Room[]
+
+  @@unique([hospitalId, code])
+}
+
+model Room {
+  id           String @id @default(uuid())
+  hospitalId   String
+  wardId       String
+  code         String
+  name         String
+  category     String // Single Private, Deluxe, ICU, etc.
+  dailyRent    Decimal @db.Decimal(18, 2) @default(0)
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  ward     Ward     @relation(fields: [wardId], references: [id])
+  beds     Bed[]
+
+  @@unique([hospitalId, code])
+}
+
+model Bed {
+  id         String    @id @default(uuid())
+  hospitalId String
+  roomId     String
+  code       String
+  status     BedStatus @default(AVAILABLE)
+
+  hospital   Hospital    @relation(fields: [hospitalId], references: [id])
+  room       Room        @relation(fields: [roomId], references: [id])
+  occupancies Occupancy[]
+  admissions Admission[] @relation("CurrentBed")
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, status])
+}
+
+model Encounter {
+  id             String   @id @default(uuid())
+  hospitalId     String
+  patientId      String
+  type           String   @default("OPD")
+  departmentId   String?
+  practitionerId String?
+  visitedAt      DateTime
+  status         String   @default("OPEN")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  department   Department?   @relation(fields: [departmentId], references: [id])
+  practitioner Practitioner? @relation(fields: [practitionerId], references: [id])
+  invoices     Invoice[]
+
+  @@index([hospitalId, patientId, visitedAt])
+}
+
+model Admission {
+  id                   String          @id @default(uuid())
+  hospitalId           String
+  patientId            String
+  ipNumber             String
+  departmentId         String?
+  practitionerId       String?
+  admittedAt           DateTime
+  dischargedAt         DateTime?
+  status               AdmissionStatus @default(ADMITTED)
+  roomCategory         String?
+  currentBedId         String?
+  primaryDiagnosis     String?
+  diagnosisCode        String?
+  procedureInfo        String?
+  policyholderName     String?
+  insurerName          String?
+  insuranceCardNo      String?
+  policyNo             String?
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  hospital     Hospital      @relation(fields: [hospitalId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  department   Department?   @relation(fields: [departmentId], references: [id])
+  practitioner Practitioner? @relation(fields: [practitionerId], references: [id])
+  currentBed   Bed?          @relation("CurrentBed", fields: [currentBedId], references: [id])
+  occupancies  Occupancy[]
+  charges      AdmissionCharge[]
+  advances     Advance[]
+  invoices     Invoice[]
+
+  @@unique([hospitalId, ipNumber])
+  @@index([hospitalId, status])
+  @@index([hospitalId, patientId])
+}
+
+model Occupancy {
+  id          String           @id @default(uuid())
+  hospitalId  String
+  admissionId String
+  bedId       String
+  checkIn     DateTime
+  checkOut    DateTime?
+  status      OccupancyStatus  @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+
+  admission Admission @relation(fields: [admissionId], references: [id])
+  bed       Bed       @relation(fields: [bedId], references: [id])
+
+  @@index([admissionId, status])
+  @@index([bedId, status])
+  @@index([hospitalId, status])
+}
+
+model TaxProfile {
+  id         String      @id @default(uuid())
+  hospitalId String
+  code       String
+  name       String
+  isExempt   Boolean     @default(false)
+  cgstRate   Decimal     @db.Decimal(8, 4) @default(0)
+  sgstRate   Decimal     @db.Decimal(8, 4) @default(0)
+  igstRate   Decimal     @db.Decimal(8, 4) @default(0)
+  sacCode    String?
+  pricingMode PricingMode @default(EXCLUSIVE)
+  active     Boolean     @default(true)
+
+  hospital     Hospital          @relation(fields: [hospitalId], references: [id])
+  serviceItems ServiceItem[]
+  tariffs      Tariff[]
+  charges      AdmissionCharge[]
+  invoiceItems InvoiceItem[]
+
+  @@unique([hospitalId, code])
+}
+
+model ServiceItem {
+  id            String          @id @default(uuid())
+  hospitalId    String
+  code          String
+  name          String
+  category      ServiceCategory
+  description   String?
+  unit          ChargeUnit      @default(PER_ITEM)
+  departmentId  String?
+  taxProfileId  String?
+  active        Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  hospital   Hospital     @relation(fields: [hospitalId], references: [id])
+  department Department?  @relation(fields: [departmentId], references: [id])
+  taxProfile TaxProfile?  @relation(fields: [taxProfileId], references: [id])
+  tariffs    Tariff[]
+  charges    AdmissionCharge[]
+  invoiceItems InvoiceItem[]
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, category])
+}
+
+model Tariff {
+  id              String   @id @default(uuid())
+  hospitalId      String
+  serviceItemId   String
+  version         Int
+  rate            Decimal  @db.Decimal(18, 2)
+  roomCategory    String?
+  taxProfileId    String?
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  hospital    Hospital    @relation(fields: [hospitalId], references: [id])
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id])
+  taxProfile  TaxProfile? @relation(fields: [taxProfileId], references: [id])
+
+  @@unique([serviceItemId, version])
+  @@index([hospitalId, serviceItemId, effectiveFrom])
+}
+
+model AdmissionCharge {
+  id               String          @id @default(uuid())
+  hospitalId       String
+  admissionId      String
+  serviceItemId    String?
+  description      String
+  category         ServiceCategory
+  unit             ChargeUnit
+  rate             Decimal         @db.Decimal(18, 2)
+  quantity         Decimal         @db.Decimal(18, 4)
+  days             Decimal?        @db.Decimal(18, 4)
+  serviceDate      DateTime
+  departmentId     String?
+  practitionerId   String?
+  discountAmount   Decimal         @db.Decimal(18, 2) @default(0)
+  taxProfileId     String?
+  taxAmount        Decimal         @db.Decimal(18, 2) @default(0)
+  lineTotal        Decimal         @db.Decimal(18, 2)
+  status           ChargeStatus    @default(DRAFT)
+  sourceModule     String?
+  sourceReference  String?
+  invoiceItemId    String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  hospital     Hospital      @relation(fields: [hospitalId], references: [id])
+  admission    Admission     @relation(fields: [admissionId], references: [id])
+  serviceItem  ServiceItem?  @relation(fields: [serviceItemId], references: [id])
+  practitioner Practitioner? @relation(fields: [practitionerId], references: [id])
+  taxProfile   TaxProfile?   @relation(fields: [taxProfileId], references: [id])
+
+  @@unique([hospitalId, sourceModule, sourceReference])
+  @@index([admissionId, status])
+  @@index([hospitalId, admissionId])
+}
+
+model NumberSeries {
+  id          String           @id @default(uuid())
+  hospitalId  String
+  kind        NumberSeriesKind
+  prefix      String
+  pad         Int              @default(4)
+  nextValue   Int              @default(1)
+  fiscalYear  String?
+  updatedAt   DateTime         @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@unique([hospitalId, kind, fiscalYear])
+}
+
+model Invoice {
+  id                String         @id @default(uuid())
+  hospitalId        String
+  patientId         String
+  admissionId       String?
+  encounterId       String?
+  number            String
+  purpose           InvoicePurpose
+  status            InvoiceStatus  @default(DRAFT)
+  currency          String         @default("INR")
+  billDate          DateTime?
+  subtotal          Decimal        @db.Decimal(18, 2) @default(0)
+  discountTotal     Decimal        @db.Decimal(18, 2) @default(0)
+  taxTotal          Decimal        @db.Decimal(18, 2) @default(0)
+  grandTotal        Decimal        @db.Decimal(18, 2) @default(0)
+  paidTotal         Decimal        @db.Decimal(18, 2) @default(0)
+  advanceAllocated  Decimal        @db.Decimal(18, 2) @default(0)
+  outstanding       Decimal        @db.Decimal(18, 2) @default(0)
+  amountInWords     String?
+  notes             String?
+  snapshotJson      Json?
+  issuedAt          DateTime?
+  finalizedById     String?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  idempotencyKey    String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  hospital    Hospital   @relation(fields: [hospitalId], references: [id])
+  patient     Patient    @relation(fields: [patientId], references: [id])
+  admission   Admission? @relation(fields: [admissionId], references: [id])
+  encounter   Encounter? @relation(fields: [encounterId], references: [id])
+  finalizedBy User?      @relation("FinalizedBy", fields: [finalizedById], references: [id])
+  items       InvoiceItem[]
+  paymentAllocations PaymentAllocation[]
+  advanceAllocations AdvanceAllocation[]
+  refundAllocations  RefundAllocation[]
+  adjustments InvoiceAdjustment[]
+
+  @@unique([hospitalId, number])
+  @@unique([hospitalId, idempotencyKey])
+  @@index([hospitalId, patientId])
+  @@index([hospitalId, admissionId])
+  @@index([hospitalId, status])
+}
+
+model InvoiceItem {
+  id              String          @id @default(uuid())
+  invoiceId       String
+  serviceItemId   String?
+  description     String
+  category        ServiceCategory?
+  unitLabel       String?
+  rate            Decimal         @db.Decimal(18, 2)
+  quantity        Decimal         @db.Decimal(18, 4)
+  discountAmount  Decimal         @db.Decimal(18, 2) @default(0)
+  taxProfileId    String?
+  taxAmount       Decimal         @db.Decimal(18, 2) @default(0)
+  taxSnapshotJson Json?
+  lineTotal       Decimal         @db.Decimal(18, 2)
+  sortOrder       Int             @default(0)
+  sourceChargeId  String?
+
+  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  serviceItem ServiceItem? @relation(fields: [serviceItemId], references: [id])
+  taxProfile  TaxProfile?  @relation(fields: [taxProfileId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  hospitalId     String
+  patientId      String
+  number         String
+  method         PaymentMethod
+  kind           PaymentKind   @default(SETTLEMENT)
+  amount         Decimal       @db.Decimal(18, 2)
+  allocatedAmount Decimal      @db.Decimal(18, 2) @default(0)
+  unallocatedAmount Decimal    @db.Decimal(18, 2)
+  transactionRef String?
+  receivedAt     DateTime
+  status         PaymentStatus @default(COMPLETED)
+  receivedById   String
+  admissionId    String?
+  notes          String?
+  idempotencyKey String?
+  createdAt      DateTime      @default(now())
+
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  receivedBy User     @relation("ReceivedBy", fields: [receivedById], references: [id])
+  allocations PaymentAllocation[]
+  refunds    Refund[]
+
+  @@unique([hospitalId, number])
+  @@unique([hospitalId, idempotencyKey])
+  @@index([hospitalId, patientId])
+  @@index([hospitalId, receivedAt])
+}
+
+model PaymentAllocation {
+  id        String   @id @default(uuid())
+  paymentId String
+  invoiceId String
+  amount    Decimal  @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([paymentId, invoiceId])
+  @@index([invoiceId])
+}
+
+model Advance {
+  id              String        @id @default(uuid())
+  hospitalId      String
+  patientId       String
+  admissionId     String?
+  number          String
+  method          PaymentMethod
+  amount          Decimal       @db.Decimal(18, 2)
+  balance         Decimal       @db.Decimal(18, 2)
+  status          AdvanceStatus @default(OPEN)
+  receivedAt      DateTime
+  receivedById    String
+  transactionRef  String?
+  notes           String?
+  idempotencyKey  String?
+  createdAt       DateTime      @default(now())
+
+  hospital   Hospital  @relation(fields: [hospitalId], references: [id])
+  patient    Patient   @relation(fields: [patientId], references: [id])
+  admission  Admission? @relation(fields: [admissionId], references: [id])
+  receivedBy User      @relation("AdvanceReceivedBy", fields: [receivedById], references: [id])
+  allocations AdvanceAllocation[]
+  refunds    Refund[]
+
+  @@unique([hospitalId, number])
+  @@unique([hospitalId, idempotencyKey])
+  @@index([hospitalId, patientId])
+  @@index([admissionId])
+}
+
+model AdvanceAllocation {
+  id        String   @id @default(uuid())
+  advanceId String
+  invoiceId String
+  amount    Decimal  @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
+
+  advance Advance @relation(fields: [advanceId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([advanceId])
+  @@index([invoiceId])
+}
+
+model Refund {
+  id            String       @id @default(uuid())
+  hospitalId    String
+  patientId     String
+  number        String
+  paymentId     String?
+  advanceId     String?
+  amount        Decimal      @db.Decimal(18, 2)
+  reason        String
+  status        RefundStatus @default(REQUESTED)
+  approvedById  String?
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime     @default(now())
+
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  payment    Payment? @relation(fields: [paymentId], references: [id])
+  advance    Advance? @relation(fields: [advanceId], references: [id])
+  approvedBy User?    @relation("RefundApprovedBy", fields: [approvedById], references: [id])
+  allocations RefundAllocation[]
+
+  @@unique([hospitalId, number])
+  @@index([hospitalId, patientId])
+}
+
+model RefundAllocation {
+  id        String   @id @default(uuid())
+  refundId  String
+  invoiceId String?
+  amount    Decimal  @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
+
+  refund  Refund   @relation(fields: [refundId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([refundId])
+}
+
+model InvoiceAdjustment {
+  id        String   @id @default(uuid())
+  invoiceId String
+  type      String   // CREDIT | DEBIT
+  amount    Decimal  @db.Decimal(18, 2)
+  reason    String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model FinancialTransaction {
+  id          String   @id @default(uuid())
+  hospitalId  String
+  patientId   String?
+  admissionId String?
+  invoiceId   String?
+  type        String
+  amount      Decimal  @db.Decimal(18, 2)
+  referenceId String?
+  referenceType String?
+  metaJson    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([hospitalId, createdAt])
+  @@index([hospitalId, type])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  hospitalId String
+  actorUserId String?
+  action     String
+  entityType String
+  entityId   String
+  beforeJson Json?
+  afterJson  Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  actor    User?    @relation(fields: [actorUserId], references: [id])
+
+  @@index([hospitalId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model CashierSession {
+  id         String    @id @default(uuid())
+  hospitalId String
+  userId     String
+  openedAt   DateTime  @default(now())
+  closedAt   DateTime?
+  openingFloat Decimal @db.Decimal(18, 2) @default(0)
+  closingCash  Decimal? @db.Decimal(18, 2)
+  notes      String?
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([hospitalId, userId])
+}
+
+model DailyClosing {
+  id           String   @id @default(uuid())
+  hospitalId   String
+  closingDate  DateTime @db.Date
+  totalCash    Decimal  @db.Decimal(18, 2) @default(0)
+  totalUpi     Decimal  @db.Decimal(18, 2) @default(0)
+  totalCard    Decimal  @db.Decimal(18, 2) @default(0)
+  totalOther   Decimal  @db.Decimal(18, 2) @default(0)
+  totalRefunds Decimal  @db.Decimal(18, 2) @default(0)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+
+  @@unique([hospitalId, closingDate])
+}

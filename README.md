@@ -1,97 +1,40 @@
-# Billing Dashboard
+# Hospital Billing
 
-Monorepo for the billing dashboard: React client (`wAI-client`) and FastAPI server (`wAI-server-new`).
+IPD healthcare billing — React client + Express/Prisma/PostgreSQL backend.
 
 ```
 billing-dashboard/
-├── wAI-client/        # React + Rspack UI (dev: :3009)
-└── wAI-server-new/    # FastAPI backend (dev: :8082)
+├── client/    # React 19 + Rspack UI (:3009)
+└── backend/   # Express + Prisma + PostgreSQL API (:8090)
 ```
 
-## Prerequisites
-
-- Node.js 18+
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/)
-- MongoDB
-- AMQP broker (e.g. RabbitMQ)
-- Ollama (optional, for AI features)
-
-## 1. Backend (`wAI-server-new`)
+## Backend
 
 ```bash
-cd wAI-server-new
-uv sync
+cd backend
+cp .env.example .env   # set DATABASE_URL
+npm install
+npx prisma db push
+npm run db:seed
+npm run dev
 ```
 
-Create a `.env` in `wAI-server-new/` (or pass flags to the CLI):
+- API: http://localhost:8090  
+- Docs: http://localhost:8090/api/docs  
+- Demo login: `billing` / `billing123`
 
-```env
-AMQP_URI=amqp://guest:guest@localhost:5672/
-MONGO_URI=mongodb://localhost:27017
-MONGO_DATABASE=wai
-OLLAMA_URL=http://localhost:11434
-JWT_SECRET=change
-PUBIC_TOKEN_SECRET=change
-APP_BASE_URL=http://localhost:8082
-RAZORPAY_WEBHOOK_SECRET=change
-
-# Optional
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-WHATSAPP_PROVIDER_URL=
-WHATSAPP_PROVIDER_TOKEN=
-REPORT_TIMEZONE=Asia/Kolkata
-```
-
-Start the API (listens on **8082**):
+## Client
 
 ```bash
-uv run wai-server-new
-```
-
-Or with explicit flags:
-
-```bash
-uv run wai-server-new \
-  --amqp-uri "$AMQP_URI" \
-  --mongo-uri "$MONGO_URI" \
-  --mongo-database "$MONGO_DATABASE" \
-  --ollama-url "$OLLAMA_URL" \
-  --jwt-secret "$JWT_SECRET" \
-  --public-token-secret "$PUBIC_TOKEN_SECRET" \
-  --app-base-url "$APP_BASE_URL" \
-  --razorpay-webhook-secret "$RAZORPAY_WEBHOOK_SECRET"
-```
-
-## 2. Frontend (`wAI-client`)
-
-In a second terminal:
-
-```bash
-cd wAI-client
+cd client
 npm install
 npm run dev
 ```
 
-UI runs at **<http://localhost:3009>**. Dev server proxies `/api` → `http://localhost:8082`.
+UI: http://localhost:3009 (proxies `/api` → `:8090`)
 
-## Quick start (both)
-
-```bash
-# Terminal 1 — API
-cd wAI-server-new && uv sync && uv run wai-server-new
-
-# Terminal 2 — UI
-cd wAI-client && npm install && npm run dev
-```
-
-Open <http://localhost:3009>
-
-## Production build (client)
+## Tests
 
 ```bash
-cd wAI-client
-npm run build
-# output in wAI-client/dist
+cd backend && npm test
 ```

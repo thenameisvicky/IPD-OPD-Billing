@@ -1,0 +1,39 @@
+{
+  "name": "client",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "rspack build",
+    "dev": "rspack dev",
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "preview": "rspack preview"
+  },
+  "dependencies": {
+    "postcss-loader": "^8.2.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@rspack/cli": "^1.7.11",
+    "@rspack/core": "^1.7.11",
+    "@rspack/plugin-react-refresh": "^1.6.0",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
+    "css-loader": "^7.1.4",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.9",
+    "prettier": "^3.7.3",
+    "react-refresh": "^0.18.0",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
+  }
+}

@@ -13,13 +13,10 @@
 *.log*
 
 # Client
-wAI-client/node_modules/
-wAI-client/dist/
-wAI-client/.rspack-profile-*/
+client/node_modules/
+client/dist/
+client/.rspack-profile-*/
 
-# Server
-wAI-server-new/.venv/
-wAI-server-new/**/__pycache__/
-wAI-server-new/**/*.py[cod]
-wAI-server-new/.ruff_cache/
-wAI-server-new/.pytest_cache/
+# Backend
+backend/node_modules/
+backend/dist/
