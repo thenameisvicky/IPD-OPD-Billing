@@ -1,13 +1,6 @@
-export type TopNavAction =
-  | "create-customer"
-  | "create-product"
-  | "create-invoice"
-  | "add-stock"
-  | "adjust-stock"
-  | "view-low-stock"
-  | "prepare-gstr1";
+export type TopNavAction = "patients" | "admission" | "advance" | "final-bill";
 
-export const TOP_NAV_ACTION_EVENT = "wai:top-nav-action";
+export const TOP_NAV_ACTION_EVENT = "billing:top-nav-action";
 
 export function emitTopNavAction(action: TopNavAction) {
   window.dispatchEvent(
@@ -15,9 +8,7 @@ export function emitTopNavAction(action: TopNavAction) {
   );
 }
 
-export function subscribeToTopNavAction(
-  handler: (action: TopNavAction) => void,
-) {
+export function subscribeToTopNavAction(handler: (action: TopNavAction) => void) {
   const listener = (event: Event) => {
     handler((event as CustomEvent<TopNavAction>).detail);
   };

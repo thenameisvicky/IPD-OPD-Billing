@@ -20,7 +20,7 @@ type BodyRequestConfig = RequestConfig & {
   data?: unknown;
 };
 
-const AUTH_TOKEN_KEY = "wai_auth_token";
+const AUTH_TOKEN_KEY = "billing_auth_token";
 
 let authToken: string | null = sessionStorage.getItem(AUTH_TOKEN_KEY);
 
@@ -55,6 +55,7 @@ export function formatApiError(
 export const setAuthToken = (token: string) => {
   authToken = token;
   sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  clearMeCache();
 };
 
 export const getAuthToken = () => authToken || sessionStorage.getItem(AUTH_TOKEN_KEY);
@@ -64,22 +65,12 @@ export const hasAuthToken = () => Boolean(getAuthToken());
 export const clearAuthToken = () => {
   authToken = null;
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  clearMeCache();
 };
 
 const clearTokenAndReload = () => {
   clearAuthToken();
   window.location.reload();
-};
-
-const hashToken = async (token: string) => {
-  if (!crypto.subtle) return null;
-
-  const bytes = new TextEncoder().encode(token);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 };
 
 const withParams = (url: string, params?: QueryParams) => {
@@ -114,8 +105,6 @@ async function request<T = any>(
     const token = getAuthToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
-      const tokenHash = await hashToken(token);
-      if (tokenHash) headers.set("X-Auth-Token-Hash", tokenHash);
     }
   }
 
@@ -123,6 +112,7 @@ async function request<T = any>(
     method,
     headers,
     body: hasBody ? JSON.stringify(config.data) : undefined,
+    cache: "no-store",
   });
   const data = await readApiJson<T>(response);
 
@@ -152,5 +142,32 @@ export const axios = {
     request<T>("DELETE", url, config),
   request,
 };
+
+/** Dedupes concurrent / overlapping /api/main/me calls across the app. */
+let meInflight: Promise<AxiosResponse> | null = null;
+let meCached: { at: number; response: AxiosResponse } | null = null;
+const ME_TTL_MS = 30_000;
+
+export function clearMeCache() {
+  meInflight = null;
+  meCached = null;
+}
+
+export async function fetchMe(): Promise<AxiosResponse> {
+  if (meCached && Date.now() - meCached.at < ME_TTL_MS) {
+    return meCached.response;
+  }
+  if (!meInflight) {
+    meInflight = axios.get("/api/main/me").then((response) => {
+      if (response.ok) {
+        meCached = { at: Date.now(), response };
+      }
+      return response;
+    }).finally(() => {
+      meInflight = null;
+    });
+  }
+  return meInflight;
+}
 
 export default axios;

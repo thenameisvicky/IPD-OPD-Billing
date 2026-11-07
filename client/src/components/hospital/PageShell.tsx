@@ -1,30 +1,50 @@
 import type { ReactNode } from "react";
 
+/** Content wrapper. Fills the workspace; never grows past the viewport. */
 export function PageShell({
-  title,
-  subtitle,
+  leading,
   actions,
   children,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
+  leading?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className="flex flex-col gap-2 border border-slate-300 bg-white px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-[18px] font-bold text-slate-900">{title}</h1>
-          {subtitle && (
-            <p className="mt-1 text-[16px] font-semibold text-slate-600">{subtitle}</p>
-          )}
+    <div className="flex h-full max-h-full min-h-0 flex-col gap-2 overflow-hidden">
+      {(leading || actions) && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border border-slate-300 bg-white px-2 py-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">{leading}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">{children}</div>
     </div>
   );
+}
+
+/** Fills remaining height; children (e.g. DataTable) scroll internally. */
+export function Fill({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={`min-h-0 flex-1 overflow-hidden ${className}`}>{children}</div>;
+}
+
+/** Fills remaining height with its own scroll when content is taller than the viewport. */
+export function ScrollArea({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={`min-h-0 flex-1 overflow-auto ${className}`}>{children}</div>;
 }
 
 export function Field({

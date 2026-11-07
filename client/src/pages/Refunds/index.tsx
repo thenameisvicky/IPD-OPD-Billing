@@ -6,7 +6,9 @@ import {
   buttonSecondaryClass,
   Field,
   inputClass,
+  Fill,
   PageShell,
+  ScrollArea,
   StatusPill,
 } from "../../components/hospital/PageShell";
 
@@ -61,84 +63,88 @@ export default function RefundsPage() {
   };
 
   return (
-    <PageShell title="Refund Management" subtitle="Request and approve refunds against unallocated advances">
+    <PageShell>
       {message && (
-        <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
+        <div className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
           {message}
         </div>
       )}
       {error && (
-        <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
+        <div className="shrink-0 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
           {error}
         </div>
       )}
-      <div className="grid gap-3 lg:grid-cols-[340px_1fr]">
-        <form onSubmit={create} className="space-y-2 border border-slate-300 bg-white p-3">
-          <Field label="Advance">
-            <select
-              required
-              className={inputClass}
-              value={form.advanceId}
-              onChange={(e) => setForm({ ...form, advanceId: e.target.value })}
-            >
-              <option value="">Select</option>
-              {advances.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.number} — bal {formatInr(a.balance)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Amount">
-            <input
-              required
-              className={inputClass}
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            />
-          </Field>
-          <Field label="Reason">
-            <input
-              required
-              className={inputClass}
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            />
-          </Field>
-          <button type="submit" className={buttonPrimaryClass}>
-            Request refund
-          </button>
-        </form>
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-[340px_1fr]">
+        <ScrollArea className="border border-slate-300 bg-white p-3">
+          <form onSubmit={create} className="space-y-2">
+            <Field label="Advance">
+              <select
+                required
+                className={inputClass}
+                value={form.advanceId}
+                onChange={(e) => setForm({ ...form, advanceId: e.target.value })}
+              >
+                <option value="">Select</option>
+                {advances.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.number} — bal {formatInr(a.balance)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Amount">
+              <input
+                required
+                className={inputClass}
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </Field>
+            <Field label="Reason">
+              <input
+                required
+                className={inputClass}
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              />
+            </Field>
+            <button type="submit" className={buttonPrimaryClass}>
+              Request refund
+            </button>
+          </form>
+        </ScrollArea>
 
-        <DataTable
-          data={{
-            columns: ["Refund No", "Patient", "Amount", "Status", "Reason", "Created", "Action"],
-            rows: refunds.map((r) => [
-              r.number,
-              r.patientName,
-              formatInr(r.amount),
-              <StatusPill
-                key={r.id}
-                value={r.status}
-                tone={r.status === "PAID" ? "emerald" : "amber"}
-              />,
-              r.reason,
-              formatDateTime(r.createdAt),
-              r.status === "REQUESTED" ? (
-                <button
-                  key={`a-${r.id}`}
-                  type="button"
-                  className={buttonSecondaryClass}
-                  onClick={() => approve(r.id)}
-                >
-                  Approve
-                </button>
-              ) : (
-                "—"
-              ),
-            ]),
-          }}
-        />
+        <Fill>
+          <DataTable
+            data={{
+              columns: ["Refund No", "Patient", "Amount", "Status", "Reason", "Created", "Action"],
+              rows: refunds.map((r) => [
+                r.number,
+                r.patientName,
+                formatInr(r.amount),
+                <StatusPill
+                  key={r.id}
+                  value={r.status}
+                  tone={r.status === "PAID" ? "emerald" : "amber"}
+                />,
+                r.reason,
+                formatDateTime(r.createdAt),
+                r.status === "REQUESTED" ? (
+                  <button
+                    key={`a-${r.id}`}
+                    type="button"
+                    className={buttonSecondaryClass}
+                    onClick={() => approve(r.id)}
+                  >
+                    Approve
+                  </button>
+                ) : (
+                  "—"
+                ),
+              ]),
+            }}
+          />
+        </Fill>
       </div>
     </PageShell>
   );

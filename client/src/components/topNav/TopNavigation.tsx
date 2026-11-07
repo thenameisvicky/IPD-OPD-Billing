@@ -12,7 +12,7 @@ export function TopNavigation({
   onSignOut: () => void;
 }) {
   return (
-    <div data-tour="topbar" className="flex min-h-12 w-full items-center border-b border-slate-200 bg-white px-3">
+    <div data-tour="topbar" className="flex h-12 min-h-12 w-full shrink-0 items-center border-b border-slate-200 bg-white px-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="shrink-0 text-[18px] font-bold uppercase text-emerald-700">
           Hospital Billing
@@ -25,10 +25,10 @@ export function TopNavigation({
         <NotificationCenter />
         <button
           type="button"
-          onClick={() => onNavigate("Hospital")}
+          onClick={() => onNavigate("Settings")}
           className="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-          aria-label="Hospital settings"
-          title="Hospital settings"
+          aria-label="Settings"
+          title="Settings"
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
             <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />

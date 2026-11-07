@@ -4,8 +4,10 @@ import { formatDateTime, formatInr, healthcareApi } from "../../api/healthcare";
 import {
   buttonPrimaryClass,
   Field,
+  Fill,
   inputClass,
   PageShell,
+  ScrollArea,
 } from "../../components/hospital/PageShell";
 
 export default function AdvancePaymentPage() {
@@ -54,68 +56,72 @@ export default function AdvancePaymentPage() {
   };
 
   return (
-    <PageShell title="Advance Collection" subtitle="Collect and track unallocated patient advances">
+    <PageShell>
       {message && (
-        <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
+        <div className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
           {message}
         </div>
       )}
       {error && (
-        <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
+        <div className="shrink-0 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
           {error}
         </div>
       )}
-      <div className="grid gap-3 lg:grid-cols-[360px_1fr]">
-        <form onSubmit={collect} className="space-y-3 border border-slate-300 bg-white p-3">
-          <Field label="Admission">
-            <select
-              required
-              className={inputClass}
-              value={admissionId}
-              onChange={(e) => setAdmissionId(e.target.value)}
-            >
-              {admissions.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.ipNumber} — {a.patientName}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Amount (₹)">
-            <input
-              required
-              className={inputClass}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </Field>
-          <Field label="Mode">
-            <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value)}>
-              <option value="CASH">Cash</option>
-              <option value="UPI">UPI</option>
-              <option value="CREDIT_CARD">Credit card</option>
-              <option value="DEBIT_CARD">Debit card</option>
-              <option value="NET_BANKING">Net banking</option>
-              <option value="BANK_TRANSFER">Bank transfer</option>
-            </select>
-          </Field>
-          <button type="submit" className={buttonPrimaryClass}>
-            Collect advance
-          </button>
-        </form>
-        <DataTable
-          data={{
-            columns: ["Receipt", "Patient", "Amount", "Balance", "Mode", "Received"],
-            rows: advances.map((a) => [
-              a.number,
-              a.patientName,
-              formatInr(a.amount),
-              formatInr(a.balance),
-              a.method,
-              formatDateTime(a.receivedAt),
-            ]),
-          }}
-        />
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-[360px_1fr]">
+        <ScrollArea className="border border-slate-300 bg-white p-3">
+          <form onSubmit={collect} className="space-y-3">
+            <Field label="Admission">
+              <select
+                required
+                className={inputClass}
+                value={admissionId}
+                onChange={(e) => setAdmissionId(e.target.value)}
+              >
+                {admissions.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.ipNumber} — {a.patientName}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Amount (₹)">
+              <input
+                required
+                className={inputClass}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </Field>
+            <Field label="Mode">
+              <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="CASH">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="CREDIT_CARD">Credit card</option>
+                <option value="DEBIT_CARD">Debit card</option>
+                <option value="NET_BANKING">Net banking</option>
+                <option value="BANK_TRANSFER">Bank transfer</option>
+              </select>
+            </Field>
+            <button type="submit" className={buttonPrimaryClass}>
+              Collect advance
+            </button>
+          </form>
+        </ScrollArea>
+        <Fill>
+          <DataTable
+            data={{
+              columns: ["Receipt", "Patient", "Amount", "Balance", "Mode", "Received"],
+              rows: advances.map((a) => [
+                a.number,
+                a.patientName,
+                formatInr(a.amount),
+                formatInr(a.balance),
+                a.method,
+                formatDateTime(a.receivedAt),
+              ]),
+            }}
+          />
+        </Fill>
       </div>
     </PageShell>
   );

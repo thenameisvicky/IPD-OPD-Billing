@@ -11,6 +11,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.string().default("info"),
   CORS_ORIGIN: z.string().default("http://localhost:3009"),
+  /** Emit per-request total/db/app + slowest SQL breakdown. Default on in development. */
+  LATENCY_LOG: z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return process.env.NODE_ENV !== "production";
+      if (typeof v === "boolean") return v;
+      return !["0", "false", "off", "no"].includes(v.toLowerCase());
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -23,4 +32,5 @@ export const env: Env = envSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   LOG_LEVEL: process.env.LOG_LEVEL,
   CORS_ORIGIN: process.env.CORS_ORIGIN,
+  LATENCY_LOG: process.env.LATENCY_LOG,
 });

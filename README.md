@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-UI: http://localhost:3009 (proxies `/api` → `:8090`)
+UI: http://localhost:3000 (proxies `/api` → `:8090`)
 
 ## Tests
 

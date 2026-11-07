@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import axios from "../../utils/axios";
+import { fetchMe } from "../../utils/axios";
 import { useOutsideDismiss } from "./useOutsideDismiss";
 
 type UserContext = {
   name: string;
   role: string;
-  company: string;
+  hospital: string;
 };
 
 const readUserContext = (payload: any): UserContext => {
@@ -13,13 +13,7 @@ const readUserContext = (payload: any): UserContext => {
   return {
     name: data.name || data.full_name || data.username || "Current User",
     role: data.role || data.user_role || "User",
-    company:
-      data.company?.name ||
-      data.company_name ||
-      data.company ||
-      data.organization ||
-      data.hospitalName ||
-      "Hospital",
+    hospital: data.hospitalName || data.organization || "Hospital",
   };
 };
 
@@ -34,7 +28,7 @@ export function ProfileMenu({
   const [user, setUser] = useState<UserContext>({
     name: "Current User",
     role: "User",
-    company: "Hospital",
+    hospital: "Hospital",
   });
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -62,7 +56,7 @@ export function ProfileMenu({
 
     const loadUser = async () => {
       try {
-        const response = await axios.get("/api/main/me");
+        const response = await fetchMe();
         if (!cancelled) setUser(readUserContext(response.data));
       } catch (error) {
         console.error("Failed to load user context", error);
@@ -85,14 +79,14 @@ export function ProfileMenu({
           if (event.key === "Escape") closeMenu();
         }}
         className="inline-flex h-9 min-w-9 items-center gap-2 rounded border border-slate-300 bg-white px-2 text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-        aria-label="Profile and company menu"
+        aria-label="Profile menu"
         aria-expanded={isOpen}
       >
         <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-emerald-200 bg-emerald-50 text-[13px] font-bold text-emerald-700">
           {initials}
         </span>
         <span className="hidden max-w-[120px] truncate text-[16px] font-bold lg:inline">
-          {user.company}
+          {user.hospital}
         </span>
       </button>
 
@@ -108,19 +102,19 @@ export function ProfileMenu({
             <p className="truncate text-[16px] font-bold text-slate-900">{user.name}</p>
             <p className="mt-1 text-[13px] font-bold uppercase text-slate-500">{user.role}</p>
             <p className="mt-1 truncate text-[16px] font-semibold text-slate-700">
-              {user.company}
+              {user.hospital}
             </p>
           </div>
           <div className="py-2">
             <button
               type="button"
               onClick={() => {
-                onNavigate("Hospital");
+                onNavigate("Settings");
                 setIsOpen(false);
               }}
               className="w-full rounded px-2 py-2 text-left text-[16px] font-bold text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-100"
             >
-              Hospital settings
+              Settings
             </button>
             <button
               type="button"

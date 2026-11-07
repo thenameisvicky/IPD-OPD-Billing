@@ -5,6 +5,7 @@ import {
   Field,
   inputClass,
   PageShell,
+  ScrollArea,
 } from "../../components/hospital/PageShell";
 
 export default function HospitalSettingsPage() {
@@ -52,7 +53,7 @@ export default function HospitalSettingsPage() {
 
   if (!form) {
     return (
-      <PageShell title="Hospital Configuration">
+      <PageShell>
         <div className="text-[15px] font-semibold text-slate-600">{error || "Loading…"}</div>
       </PageShell>
     );
@@ -61,23 +62,24 @@ export default function HospitalSettingsPage() {
   const set = (key: string, value: string) => setForm({ ...form, [key]: value });
 
   return (
-    <PageShell title="Hospital Configuration" subtitle="Invoice header, declaration, numbering and LOS policy">
+    <PageShell>
       {message && (
-        <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
+        <div className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
           {message}
         </div>
       )}
       {error && (
-        <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
+        <div className="shrink-0 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
           {error}
         </div>
       )}
       {form.isDemo && (
-        <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[14px] font-semibold text-amber-900">
+        <div className="shrink-0 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[14px] font-semibold text-amber-900">
           This hospital record is marked as DEMO/test data. Replace identity fields before production use.
           Tax profiles must be reviewed by the hospital CA — generating invoices does not complete GST compliance.
         </div>
       )}
+      <ScrollArea>
       <form onSubmit={save} className="grid max-w-4xl gap-3 border border-slate-300 bg-white p-3 md:grid-cols-2">
         {[
           ["name", "Hospital name"],
@@ -154,6 +156,7 @@ export default function HospitalSettingsPage() {
           </button>
         </div>
       </form>
+      </ScrollArea>
     </PageShell>
   );
 }

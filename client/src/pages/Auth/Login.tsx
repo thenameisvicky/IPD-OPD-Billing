@@ -39,10 +39,10 @@ export default function LoginPage({ onLoginSuccess, onGoToSignup }: LoginProps) 
             <div className="w-full max-w-md">
                 <div className="text-center mb-5">
                     <div className="mb-4 inline-flex h-12 w-12 items-center justify-center border border-emerald-700 bg-emerald-600 text-xl font-bold text-white">
-                        w
+                        HB
                     </div>
                     <h1 className="mb-2 text-2xl font-bold text-slate-900">Welcome Back</h1>
-                    <p className="text-slate-600 font-bold uppercase tracking-[0.2em] text-[16px]">Hospital Billing Access</p>
+                    <p className="text-slate-600 font-bold uppercase tracking-[0.2em] text-[16px]">Hospital Billing</p>
                     <p className="mt-2 text-[13px] font-semibold text-slate-500">Demo: billing / billing123</p>
                 </div>
 
@@ -98,7 +98,7 @@ export default function LoginPage({ onLoginSuccess, onGoToSignup }: LoginProps) 
                             type="submit"
                             className="w-full rounded border border-slate-900 bg-slate-900 py-3 text-[16px] font-bold uppercase tracking-[0.12em] text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                            {loading ? "Authenticating..." : "Sign In to wAI"}
+                            {loading ? "Authenticating..." : "Sign In"}
                         </button>
                     </form>
 
@@ -107,7 +107,7 @@ export default function LoginPage({ onLoginSuccess, onGoToSignup }: LoginProps) 
                             onClick={onGoToSignup}
                             className="text-[16px] font-bold uppercase tracking-[0.12em] text-slate-600 hover:text-emerald-700"
                         >
-                            New to wAI? <span className="text-slate-900 ml-1">Create an account</span>
+                            New here? <span className="text-slate-900 ml-1">Create an account</span>
                         </button>
                     </div>
                 </div>

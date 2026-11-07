@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { money, moneyToString } from "../../lib/money";
 import { prisma } from "../../lib/prisma";
+import { timed } from "../../lib/requestContext";
 import { ok } from "../../lib/response";
 import { requireAuth } from "../../middleware/auth";
 
@@ -10,65 +11,212 @@ reportsRouter.use(requireAuth);
 reportsRouter.get("/dashboard", async (req, res, next) => {
   try {
     const hospitalId = req.user!.hospitalId;
+    const weekStart = startOfWeek(new Date());
+    const weekEnd = endOfDay(addDays(weekStart, 6));
+
+    // 11 parallel Prisma ops — wall time ≈ slowest branch; dbMsSum in logs is sum of SQL durations.
     const [
       activeAdmissions,
       billingPending,
       draftChargeAgg,
-      finalizedToday,
       advanceOpen,
       outstandingInvoices,
-    ] = await Promise.all([
-      prisma.admission.count({
-        where: { hospitalId, status: "ADMITTED" },
-      }),
-      prisma.admission.count({
-        where: { hospitalId, status: "BILLING" },
-      }),
-      prisma.admissionCharge.aggregate({
-        where: { hospitalId, status: "DRAFT" },
-        _sum: { lineTotal: true },
-        _count: true,
-      }),
-      prisma.invoice.findMany({
-        where: {
-          hospitalId,
-          purpose: "FINAL",
-          status: { not: "CANCELLED" },
-          issuedAt: { gte: startOfDay(new Date()) },
-        },
-        take: 20,
-        orderBy: { issuedAt: "desc" },
-        include: { patient: true },
-      }),
-      prisma.advance.aggregate({
-        where: {
-          hospitalId,
-          status: { in: ["OPEN", "PARTIALLY_ALLOCATED"] },
-        },
-        _sum: { balance: true },
-      }),
-      prisma.invoice.aggregate({
-        where: {
-          hospitalId,
-          status: { in: ["ISSUED", "PARTIALLY_PAID"] },
-        },
-        _sum: { outstanding: true },
-        _count: true,
-      }),
-    ]);
+      recentInvoices,
+      weekPayments,
+      weekAdvances,
+      recentAdmissions,
+      recentPayments,
+      recentAdvanceRows,
+    ] = await timed("dashboard.parallel_queries", () =>
+      Promise.all([
+        timed("metrics.active_admissions", () =>
+          prisma.admission.count({ where: { hospitalId, status: "ADMITTED" } }),
+        ),
+        timed("metrics.billing_pending", () =>
+          prisma.admission.count({ where: { hospitalId, status: "BILLING" } }),
+        ),
+        timed("metrics.draft_charges", () =>
+          prisma.admissionCharge.aggregate({
+            where: { hospitalId, status: "DRAFT" },
+            _sum: { lineTotal: true },
+            _count: true,
+          }),
+        ),
+        timed("metrics.advance_balance", () =>
+          prisma.advance.aggregate({
+            where: {
+              hospitalId,
+              status: { in: ["OPEN", "PARTIALLY_ALLOCATED"] },
+            },
+            _sum: { balance: true },
+          }),
+        ),
+        timed("metrics.outstanding", () =>
+          prisma.invoice.aggregate({
+            where: {
+              hospitalId,
+              status: { in: ["ISSUED", "PARTIALLY_PAID"] },
+            },
+            _sum: { outstanding: true },
+            _count: true,
+          }),
+        ),
+        timed("list.recent_invoices", () =>
+          prisma.invoice.findMany({
+            where: {
+              hospitalId,
+              purpose: "FINAL",
+              status: { in: ["ISSUED", "PARTIALLY_PAID", "PAID"] },
+            },
+            take: 12,
+            orderBy: { issuedAt: "desc" },
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              issuedAt: true,
+              createdAt: true,
+              grandTotal: true,
+              outstanding: true,
+              patient: { select: { displayName: true, uhid: true } },
+              admission: { select: { ipNumber: true } },
+            },
+          }),
+        ),
+        timed("chart.week_payments", () =>
+          prisma.payment.findMany({
+            where: {
+              hospitalId,
+              status: "COMPLETED",
+              receivedAt: { gte: weekStart, lte: weekEnd },
+            },
+            select: { amount: true, receivedAt: true },
+          }),
+        ),
+        timed("chart.week_advances", () =>
+          prisma.advance.findMany({
+            where: {
+              hospitalId,
+              receivedAt: { gte: weekStart, lte: weekEnd },
+            },
+            select: { amount: true, receivedAt: true },
+          }),
+        ),
+        timed("list.active_admissions", () =>
+          prisma.admission.findMany({
+            where: { hospitalId, status: { in: ["ADMITTED", "BILLING"] } },
+            select: {
+              id: true,
+              ipNumber: true,
+              status: true,
+              admittedAt: true,
+              patient: { select: { displayName: true, uhid: true } },
+              practitioner: { select: { name: true } },
+              currentBed: {
+                select: { code: true, room: { select: { name: true } } },
+              },
+              advances: { select: { balance: true } },
+              charges: { where: { status: "DRAFT" }, select: { lineTotal: true } },
+              invoices: {
+                where: { purpose: "FINAL", status: { not: "CANCELLED" } },
+                orderBy: { issuedAt: "desc" },
+                take: 1,
+                select: { id: true, number: true },
+              },
+            },
+            orderBy: { admittedAt: "desc" },
+            take: 12,
+          }),
+        ),
+        timed("activity.recent_payments", () =>
+          prisma.payment.findMany({
+            where: { hospitalId, status: "COMPLETED" },
+            select: {
+              id: true,
+              number: true,
+              amount: true,
+              receivedAt: true,
+              patient: { select: { displayName: true } },
+            },
+            orderBy: { receivedAt: "desc" },
+            take: 8,
+          }),
+        ),
+        timed("activity.recent_advances", () =>
+          prisma.advance.findMany({
+            where: { hospitalId },
+            select: {
+              id: true,
+              number: true,
+              amount: true,
+              receivedAt: true,
+              patient: { select: { displayName: true } },
+            },
+            orderBy: { receivedAt: "desc" },
+            take: 8,
+          }),
+        ),
+      ]),
+    );
 
-    const recentAdmissions = await prisma.admission.findMany({
-      where: { hospitalId, status: { in: ["ADMITTED", "BILLING"] } },
-      include: {
-        patient: true,
-        practitioner: true,
-        currentBed: { include: { room: true } },
-        advances: true,
-        charges: { where: { status: "DRAFT" } },
-      },
-      orderBy: { admittedAt: "desc" },
-      take: 20,
+    const weeklyIncoming = Array.from({ length: 7 }, (_, i) => {
+      const day = addDays(weekStart, i);
+      const from = startOfDay(day);
+      const to = endOfDay(day);
+      const paySum = weekPayments
+        .filter((p) => p.receivedAt >= from && p.receivedAt <= to)
+        .reduce((s, p) => s + Number(p.amount), 0);
+      const advSum = weekAdvances
+        .filter((a) => a.receivedAt >= from && a.receivedAt <= to)
+        .reduce((s, a) => s + Number(a.amount), 0);
+      return {
+        date: from.toISOString().slice(0, 10),
+        dayLabel: from.toLocaleDateString("en-IN", { weekday: "short" }),
+        amount: moneyToString(paySum + advSum),
+        amountNumber: paySum + advSum,
+      };
     });
+
+    const activities = [
+      ...recentInvoices.map((inv) => ({
+        id: `inv-${inv.id}`,
+        type: "INVOICE",
+        title: `Invoice ${inv.number}`,
+        detail: `${inv.patient.displayName} · ${moneyToString(inv.grandTotal)}`,
+        at: inv.issuedAt || inv.createdAt,
+        refId: inv.id,
+        refNumber: inv.number,
+      })),
+      ...recentPayments.map((p) => ({
+        id: `pay-${p.id}`,
+        type: "PAYMENT",
+        title: `Payment ${p.number}`,
+        detail: `${p.patient.displayName} · ${moneyToString(p.amount)}`,
+        at: p.receivedAt,
+        refId: p.id,
+        refNumber: p.number,
+      })),
+      ...recentAdvanceRows.map((a) => ({
+        id: `adv-${a.id}`,
+        type: "ADVANCE",
+        title: `Advance ${a.number}`,
+        detail: `${a.patient.displayName} · ${moneyToString(a.amount)}`,
+        at: a.receivedAt,
+        refId: a.id,
+        refNumber: a.number,
+      })),
+      ...recentAdmissions.map((a) => ({
+        id: `adm-${a.id}`,
+        type: "ADMISSION",
+        title: `Admission ${a.ipNumber}`,
+        detail: `${a.patient.displayName} · ${a.status}`,
+        at: a.admittedAt,
+        refId: a.id,
+        refNumber: a.ipNumber,
+      })),
+    ]
+      .sort((a, b) => new Date(b.at!).getTime() - new Date(a.at!).getTime())
+      .slice(0, 20);
 
     return ok(res, {
       metrics: {
@@ -79,8 +227,21 @@ reportsRouter.get("/dashboard", async (req, res, next) => {
         advanceBalance: moneyToString(advanceOpen._sum.balance || 0),
         outstandingTotal: moneyToString(outstandingInvoices._sum.outstanding || 0),
         outstandingInvoiceCount: outstandingInvoices._count,
-        finalizedTodayCount: finalizedToday.length,
+        finalizedInvoiceCount: recentInvoices.length,
       },
+      weeklyIncoming,
+      activities,
+      recentInvoices: recentInvoices.map((inv) => ({
+        id: inv.id,
+        number: inv.number,
+        patientName: inv.patient.displayName,
+        uhid: inv.patient.uhid,
+        ipNumber: inv.admission?.ipNumber || null,
+        grandTotal: moneyToString(inv.grandTotal),
+        outstanding: moneyToString(inv.outstanding),
+        status: inv.status,
+        issuedAt: inv.issuedAt,
+      })),
       recentAdmissions: recentAdmissions.map((a) => ({
         id: a.id,
         ipNumber: a.ipNumber,
@@ -93,15 +254,8 @@ reportsRouter.get("/dashboard", async (req, res, next) => {
         bed: a.currentBed?.code || null,
         deposit: moneyToString(a.advances.reduce((s, x) => s + Number(x.balance), 0)),
         estimatedBill: moneyToString(a.charges.reduce((s, x) => s + Number(x.lineTotal), 0)),
-      })),
-      finalizedToday: finalizedToday.map((inv) => ({
-        id: inv.id,
-        number: inv.number,
-        patientName: inv.patient.displayName,
-        grandTotal: moneyToString(inv.grandTotal),
-        outstanding: moneyToString(inv.outstanding),
-        status: inv.status,
-        issuedAt: inv.issuedAt,
+        invoiceNumber: a.invoices[0]?.number || null,
+        invoiceId: a.invoices[0]?.id || null,
       })),
     });
   } catch (err) {
@@ -176,5 +330,17 @@ function startOfDay(d: Date) {
 function endOfDay(d: Date) {
   const x = new Date(d);
   x.setHours(23, 59, 59, 999);
+  return x;
+}
+function startOfWeek(d: Date) {
+  const x = startOfDay(d);
+  const day = x.getDay(); // 0 Sun
+  const diff = day === 0 ? -6 : 1 - day; // Monday start
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function addDays(d: Date, n: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
   return x;
 }

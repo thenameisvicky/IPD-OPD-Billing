@@ -3,6 +3,8 @@
 .idea
 .vscode/*
 !.vscode/extensions.json
+# launch.json holds local DB/JWT envs — keep out of git
+!.vscode/launch.json.example
 
 # Env / secrets
 .env

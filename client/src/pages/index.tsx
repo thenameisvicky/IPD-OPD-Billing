@@ -1,17 +1,16 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Sidebar } from "../components/common/sideBar";
-import { PageBreadcrumb } from "../components/topNav/PageBreadcrumb";
 import { TopNavigation } from "../components/topNav/TopNavigation";
 import LoginPage from "./Auth/Login";
 import SignupPage from "./Auth/Signup";
 import { getModuleRoute } from "../modules/registry";
-import axios, { clearAuthToken, hasAuthToken, setAuthToken } from "../utils/axios";
+import axios, { clearAuthToken, fetchMe, hasAuthToken, setAuthToken } from "../utils/axios";
 
 const IDLE_LOCK_MS = 3 * 60 * 1000;
-const FREEZE_DB = "wai_client_freeze";
+const FREEZE_DB = "billing_client_freeze";
 const FREEZE_STORE = "snapshots";
-const TOUR_LOCAL_KEY = "wai_tutorial_completed";
+const TOUR_LOCAL_KEY = "billing_tutorial_completed";
 
 const tourSteps = [
   {
@@ -22,7 +21,7 @@ const tourSteps = [
   {
     target: "sidebar",
     title: "Modules",
-    body: "Move between IPD Dashboard, Patients, Admissions, Final Bill, and other billing modules.",
+    body: "Move between Home, Patients, Admissions, Final Bill, Invoices, and other billing modules.",
   },
   {
     target: "workspace",
@@ -195,7 +194,7 @@ function TourChoiceModal({
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
       <div className="w-full max-w-sm rounded border border-slate-300 bg-white p-4 shadow-xl">
         <div className="text-[16px] font-bold uppercase tracking-[0.14em] text-emerald-700">
-          Welcome to wAI
+          Welcome to Hospital Billing
         </div>
         <h2 className="mt-2 text-2xl font-bold text-slate-900">
           Show you around?
@@ -327,7 +326,7 @@ export default function PagesRouter() {
   const [authStatus, setAuthStatus] = useState<
     "loading" | "unauthenticated" | "authenticated" | "signup"
   >("loading");
-  const [activePage, setActivePage] = useState("IPD Dashboard");
+  const [activePage, setActivePage] = useState("Home");
   const [isLocked, setIsLocked] = useState(true);
   const [sessionLocked, setSessionLocked] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -371,7 +370,7 @@ export default function PagesRouter() {
     let cancelled = false;
     const loadTutorialState = async () => {
       try {
-        const response = await axios.get("/api/main/me");
+        const response = await fetchMe();
         const completed = Boolean((response.data as any)?.data?.tutorial_completed);
         if (!cancelled && !completed) setTourPromptOpen(true);
       } catch (error) {
@@ -450,17 +449,17 @@ export default function PagesRouter() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#FDFDFD] overflow-hidden font-sans text-slate-900">
+    <div className="flex h-full max-h-full min-h-0 flex-col overflow-hidden bg-[#FDFDFD] font-sans text-slate-900">
       <TopNavigation
         activePage={activePage}
         onNavigate={setActivePage}
         onSignOut={handleLogout}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           data-tour="sidebar"
-          className={`${isExpanded ? "w-[220px]" : "w-[64px]"} flex h-full shrink-0 border-r border-slate-300 bg-white`}
+          className={`${isExpanded ? "w-[220px]" : "w-[64px]"} flex h-full min-h-0 shrink-0 border-r border-slate-300 bg-white`}
         >
           <Sidebar
             isExpanded={isExpanded}
@@ -472,9 +471,8 @@ export default function PagesRouter() {
           />
         </div>
 
-        <div data-tour="workspace" className="flex-1 flex flex-col relative h-full min-w-0">
-          <PageBreadcrumb activePage={activePage} />
-          <div className="relative flex-1 overflow-hidden p-1.5">
+        <div data-tour="workspace" className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-1.5">
             {renderPage()}
           </div>
         </div>

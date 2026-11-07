@@ -8,10 +8,23 @@ interface DataTableProps {
   onDelete?: (item: any) => void;
   onOpen?: (item: any) => void;
   actionVariant?: "icons" | "buttons";
+  selectedId?: string | null;
+  getRowId?: (item: any) => string;
+  /** When false, row click still calls onOpen but the Actions column is hidden. */
+  showActions?: boolean;
 }
 
-export function DataTable({ data, onEdit, onDelete, onOpen, actionVariant = "icons" }: DataTableProps) {
-  const hasActions = onEdit || onDelete || onOpen;
+export function DataTable({
+  data,
+  onEdit,
+  onDelete,
+  onOpen,
+  actionVariant = "icons",
+  selectedId,
+  getRowId = (item) => item?.id,
+  showActions = true,
+}: DataTableProps) {
+  const hasActions = showActions && !!(onEdit || onDelete || onOpen);
   const columnSpan = data.columns.length + (hasActions ? 1 : 0);
   const actionButtonClass =
     actionVariant === "buttons"
@@ -19,7 +32,7 @@ export function DataTable({ data, onEdit, onDelete, onOpen, actionVariant = "ico
       : "inline-flex h-7 w-7 items-center justify-center rounded border border-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200";
   
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden border border-slate-300 bg-white">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border border-slate-300 bg-white">
       <div className="flex min-h-0 flex-1 flex-col overflow-auto bg-slate-100">
         <table className={`w-full min-w-[860px] border-collapse text-left ${data.rows.length === 0 ? "h-full" : ""}`}>
           <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 shadow-[0_1px_0_rgba(15,23,42,0.08)]">
@@ -49,19 +62,22 @@ export function DataTable({ data, onEdit, onDelete, onOpen, actionVariant = "ico
                   </div>
                 </td>
               </tr>
-            ) : data.rows.map((row, rowIndex) => (
+            ) : data.rows.map((row, rowIndex) => {
+              const raw = data.rawItems?.[rowIndex];
+              const isSelected = selectedId != null && raw && getRowId(raw) === selectedId;
+              return (
               <tr
                 key={rowIndex}
                 tabIndex={onOpen ? 0 : undefined}
-                onClick={() => onOpen?.(data.rawItems?.[rowIndex])}
+                onClick={() => onOpen?.(raw)}
                 onKeyDown={(event) => {
                   if (!onOpen) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    onOpen(data.rawItems?.[rowIndex]);
+                    onOpen(raw);
                   }
                 }}
-                className={`group outline-none hover:bg-emerald-50/40 focus:bg-emerald-50 focus:ring-2 focus:ring-inset focus:ring-emerald-200 ${onOpen ? "cursor-pointer" : ""}`}
+                className={`group outline-none hover:bg-emerald-50/40 focus:bg-emerald-50 focus:ring-2 focus:ring-inset focus:ring-emerald-200 ${onOpen ? "cursor-pointer" : ""} ${isSelected ? "bg-emerald-50 ring-2 ring-inset ring-emerald-300" : ""}`}
               >
                 {row.map((cell, cellIndex) => (
                   <td
@@ -76,17 +92,17 @@ export function DataTable({ data, onEdit, onDelete, onOpen, actionVariant = "ico
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-1">
                     {onOpen && (
-                      <button onClick={(event) => { event.stopPropagation(); onOpen(data.rawItems?.[rowIndex]); }} title="Open" className={actionButtonClass}>
+                      <button onClick={(event) => { event.stopPropagation(); onOpen(raw); }} title="Open" className={actionButtonClass}>
                         {actionVariant === "buttons" ? "Open" : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4.5M10 14L21 3"/></svg>}
                       </button>
                     )}
                     {onEdit && (
-                      <button onClick={(event) => { event.stopPropagation(); onEdit(data.rawItems?.[rowIndex]); }} title="Edit" className={actionButtonClass}>
+                      <button onClick={(event) => { event.stopPropagation(); onEdit(raw); }} title="Edit" className={actionButtonClass}>
                         {actionVariant === "buttons" ? "Edit" : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
                       </button>
                     )}
                     {onDelete && (
-                      <button onClick={(event) => { event.stopPropagation(); onDelete(data.rawItems?.[rowIndex]); }} title="Delete" className={`${actionButtonClass} hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus:ring-rose-100`}>
+                      <button onClick={(event) => { event.stopPropagation(); onDelete(raw); }} title="Delete" className={`${actionButtonClass} hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus:ring-rose-100`}>
                          {actionVariant === "buttons" ? "Delete" : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>}
                       </button>
                     )}
@@ -94,7 +110,8 @@ export function DataTable({ data, onEdit, onDelete, onOpen, actionVariant = "ico
                   </td>
                 )}
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

@@ -12,7 +12,7 @@ export default function SignupPage({ onGoToLogin }: SignupProps) {
         username: "",
         email: "",
         password: "",
-        name: "", // Company Name
+        name: "", // Hospital name
         phone: "",
         company_type: "Manufacturing",
         industry: "Manufacturing",
@@ -42,7 +42,7 @@ export default function SignupPage({ onGoToLogin }: SignupProps) {
 
         const normalizedGstin = formData.gstin.trim().toUpperCase();
         if (formData.registered_gst && !GSTIN_PATTERN.test(normalizedGstin)) {
-            setError("Registration failed: Invalid company GSTIN format");
+            setError("Registration failed: Invalid GSTIN format");
             setLoading(false);
             return;
         }
@@ -60,7 +60,6 @@ export default function SignupPage({ onGoToLogin }: SignupProps) {
             const data = response.data;
 
             if (response.ok && data?.status === "success") {
-                // window.localStorage.setItem("wai_font_scale", formData.ui_font_scale);
                 setSuccess(true);
                 setTimeout(() => onGoToLogin(), 2000);
             } else {
@@ -154,7 +153,7 @@ export default function SignupPage({ onGoToLogin }: SignupProps) {
                         <div className="h-[1px] bg-slate-50 my-2" />
 
                         <div className="space-y-2">
-                            <label className="text-[16px] font-bold text-slate-600 uppercase tracking-[0.14em] ml-1">Company Name</label>
+                            <label className="text-[16px] font-bold text-slate-600 uppercase tracking-[0.14em] ml-1">Hospital Name</label>
                             <input
                                 required
                                 className="w-full bg-slate-50 border border-slate-300 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 rounded px-4 py-3 text-sm transition-colors outline-none font-bold"

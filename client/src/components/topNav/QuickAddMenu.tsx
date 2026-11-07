@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import { emitTopNavAction } from "./actions";
+import { emitTopNavAction, type TopNavAction } from "./actions";
 import { quickAddSections } from "./topNavData";
+import { useOutsideDismiss } from "./useOutsideDismiss";
 
 type QuickAddItem = (typeof quickAddSections)[number]["items"][number];
-import { useOutsideDismiss } from "./useOutsideDismiss";
 
 export function QuickAddMenu({ onNavigate }: { onNavigate: (page: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +21,7 @@ export function QuickAddMenu({ onNavigate }: { onNavigate: (page: string) => voi
     if (!item.enabled) return;
     onNavigate(item.page);
     setIsOpen(false);
-    window.setTimeout(() => emitTopNavAction(item.action), 0);
+    window.setTimeout(() => emitTopNavAction(item.action as TopNavAction), 0);
   };
 
   return (

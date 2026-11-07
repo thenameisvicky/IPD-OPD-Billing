@@ -12,6 +12,59 @@ import { nextNumber } from "../numbers/series";
 export const invoicesRouter = Router();
 invoicesRouter.use(requireAuth);
 
+invoicesRouter.get("/", async (req, res, next) => {
+  try {
+    const hospitalId = req.user!.hospitalId;
+    const status = req.query.status ? String(req.query.status) : undefined;
+    const purpose = req.query.purpose ? String(req.query.purpose) : "FINAL";
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 50)));
+
+    const where = {
+      hospitalId,
+      purpose: purpose as any,
+      status: status
+        ? (status as any)
+        : { in: ["ISSUED", "PARTIALLY_PAID", "PAID"] as const },
+    };
+
+    const [total, rows] = await Promise.all([
+      prisma.invoice.count({ where }),
+      prisma.invoice.findMany({
+        where,
+        include: {
+          patient: true,
+          admission: true,
+        },
+        orderBy: { issuedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return ok(res, {
+      items: rows.map((inv) => ({
+        id: inv.id,
+        number: inv.number,
+        status: inv.status,
+        purpose: inv.purpose,
+        billDate: inv.billDate || inv.issuedAt,
+        issuedAt: inv.issuedAt,
+        grandTotal: moneyToString(inv.grandTotal),
+        paidTotal: moneyToString(inv.paidTotal),
+        outstanding: moneyToString(inv.outstanding),
+        patientName: inv.patient.displayName,
+        uhid: inv.patient.uhid,
+        ipNumber: inv.admission?.ipNumber || null,
+        admissionId: inv.admissionId,
+      })),
+      meta: { page, pageSize, total },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 async function buildAdmissionBillPreview(admissionId: string, hospitalId: string) {
   const admission = await prisma.admission.findFirst({
     where: { id: admissionId, hospitalId },

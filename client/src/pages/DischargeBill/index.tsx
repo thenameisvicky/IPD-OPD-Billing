@@ -5,8 +5,10 @@ import {
   buttonPrimaryClass,
   buttonSecondaryClass,
   Field,
+  Fill,
   inputClass,
   PageShell,
+  ScrollArea,
   StatusPill,
 } from "../../components/hospital/PageShell";
 import InvoicePrintPage from "../InvoicePrint";
@@ -121,8 +123,6 @@ export default function DischargeBillPage() {
 
   return (
     <PageShell
-      title="IPD Final Bill"
-      subtitle="Preview charges, finalize immutable invoice, settle and print"
       actions={
         <div className="flex flex-wrap gap-2">
           <button type="button" className={buttonSecondaryClass} onClick={() => loadPreview()} disabled={busy}>
@@ -149,17 +149,17 @@ export default function DischargeBillPage() {
       }
     >
       {message && (
-        <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
+        <div className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
           {message}
         </div>
       )}
       {error && (
-        <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
+        <div className="shrink-0 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
           {error}
         </div>
       )}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 lg:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-1 gap-2 lg:grid-cols-4">
         <Field label="Admission">
           <select
             className={inputClass}
@@ -195,9 +195,9 @@ export default function DischargeBillPage() {
         )}
       </div>
 
-      {preview && (
-        <div className="space-y-3">
-          <div className="border border-slate-300 bg-white p-3 text-[14px]">
+      {preview ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+          <div className="shrink-0 border border-slate-300 bg-white p-3 text-[14px]">
             <div className="grid gap-2 md:grid-cols-2">
               <div>
                 <strong>{preview.patient.name}</strong> ({preview.patient.uhid})
@@ -218,21 +218,23 @@ export default function DischargeBillPage() {
             )}
           </div>
 
-          <DataTable
-            data={{
-              columns: ["#", "Description", "Rate", "Qty/Days", "Amount"],
-              rows: (preview.lines || []).map((line: any, idx: number) => [
-                idx + 1,
-                line.description,
-                formatInr(line.rate),
-                line.unitLabel,
-                formatInr(line.lineTotal),
-              ]),
-            }}
-          />
+          <Fill>
+            <DataTable
+              data={{
+                columns: ["#", "Description", "Rate", "Qty/Days", "Amount"],
+                rows: (preview.lines || []).map((line: any, idx: number) => [
+                  idx + 1,
+                  line.description,
+                  formatInr(line.rate),
+                  line.unitLabel,
+                  formatInr(line.lineTotal),
+                ]),
+              }}
+            />
+          </Fill>
 
           {invoice && Number(invoice.outstanding) > 0 && (
-            <div className="flex flex-wrap items-end gap-3 border border-slate-300 bg-white p-3">
+            <div className="flex shrink-0 flex-wrap items-end gap-3 border border-slate-300 bg-white p-3">
               <Field label="Settlement amount">
                 <input
                   className={inputClass}
@@ -260,6 +262,10 @@ export default function DischargeBillPage() {
             </div>
           )}
         </div>
+      ) : (
+        <ScrollArea className="flex items-center justify-center text-[15px] font-semibold text-slate-500">
+          Select an admission and click Preview Bill.
+        </ScrollArea>
       )}
     </PageShell>
   );

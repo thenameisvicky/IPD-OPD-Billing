@@ -68,7 +68,7 @@ export default defineConfig({
     ],
   },
   devServer: {
-    port: 3009,
+    port: 3000,
     proxy: [
       {
         // Healthcare billing API (Express + Prisma + PostgreSQL)

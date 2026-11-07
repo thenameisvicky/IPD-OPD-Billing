@@ -30,11 +30,13 @@ async function unwrap<T>(promise: ReturnType<typeof axios.get>): Promise<ApiResu
 
 export const healthcareApi = {
   dashboard: () => unwrap<any>(axios.get("/api/v1/reports/dashboard")),
-  searchPatients: (q: string) =>
-    unwrap<any[]>(axios.get("/api/v1/patients", { params: { q, pageSize: 50 } })),
+  searchPatients: (params?: Record<string, string | number>) =>
+    unwrap<any[]>(axios.get("/api/v1/patients", { params: { pageSize: 50, ...params } })),
   createPatient: (payload: Record<string, unknown>) =>
     unwrap<any>(axios.post("/api/v1/patients", payload)),
   getPatient: (id: string) => unwrap<any>(axios.get(`/api/v1/patients/${id}`)),
+  listInvoices: (params?: Record<string, string | number>) =>
+    unwrap<any>(axios.get("/api/v1/invoices", { params: { purpose: "FINAL", pageSize: 100, ...params } })),
 
   listAdmissions: (params?: Record<string, string | number>) =>
     unwrap<any[]>(axios.get("/api/v1/admissions", { params })),

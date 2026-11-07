@@ -1,8 +1,11 @@
 import { moduleRoutes } from "../../modules/registry";
 
-export const breadcrumbMap: Record<string, string[]> = Object.fromEntries(
-  moduleRoutes.map((route) => [route.label, ["IPD Billing", route.label]]),
+export const routeBreadcrumbs: Record<string, string[]> = Object.fromEntries(
+  moduleRoutes.map((route) => [route.label, [route.label]]),
 );
+
+/** @deprecated kept for any leftover imports */
+export const breadcrumbMap = routeBreadcrumbs;
 
 export const topNavQuickLinks = moduleRoutes.map((route) => ({
   label: route.label,
@@ -24,7 +27,7 @@ export const quickAddSections: Array<{
     title: "Billing",
     items: [
       { label: "Register patient", action: "patients", page: "Patients", enabled: true },
-      { label: "New admission", action: "admission", page: "IPD Admission", enabled: true },
+      { label: "New admission", action: "admission", page: "Admissions", enabled: true },
       { label: "Collect advance", action: "advance", page: "Advances", enabled: true },
       { label: "Final bill", action: "final-bill", page: "Final Bill", enabled: true },
     ],

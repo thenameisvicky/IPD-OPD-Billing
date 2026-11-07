@@ -31,24 +31,44 @@ const patientSchema = z.object({
 patientsRouter.get("/", async (req, res, next) => {
   try {
     const q = String(req.query.q || "").trim();
+    const name = String(req.query.name || "").trim();
+    const phone = String(req.query.phone || "").trim();
+    const dob = String(req.query.dob || "").trim(); // YYYY-MM-DD
     const page = Math.max(1, Number(req.query.page || 1));
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 20)));
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 50)));
     const hospitalId = req.user!.hospitalId;
 
-    const where = {
-      hospitalId,
-      ...(q
-        ? {
-            OR: [
-              { uhid: { contains: q, mode: "insensitive" as const } },
-              { displayName: { contains: q, mode: "insensitive" as const } },
-              { phone: { contains: q } },
-              { firstName: { contains: q, mode: "insensitive" as const } },
-              { lastName: { contains: q, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
-    };
+    const orFilters: any[] = [];
+
+    if (name) {
+      orFilters.push(
+        { displayName: { contains: name, mode: "insensitive" as const } },
+        { firstName: { contains: name, mode: "insensitive" as const } },
+        { lastName: { contains: name, mode: "insensitive" as const } },
+      );
+    }
+    if (phone) {
+      orFilters.push({ phone: { contains: phone } });
+    }
+    if (dob) {
+      const dayStart = new Date(`${dob}T00:00:00.000Z`);
+      const dayEnd = new Date(`${dob}T23:59:59.999Z`);
+      orFilters.push({ dob: { gte: dayStart, lte: dayEnd } });
+    }
+    if (q && !name && !phone && !dob) {
+      orFilters.push(
+        { uhid: { contains: q, mode: "insensitive" as const } },
+        { displayName: { contains: q, mode: "insensitive" as const } },
+        { phone: { contains: q } },
+        { firstName: { contains: q, mode: "insensitive" as const } },
+        { lastName: { contains: q, mode: "insensitive" as const } },
+      );
+    }
+
+    const where =
+      orFilters.length > 0
+        ? { hospitalId, OR: orFilters }
+        : { hospitalId };
 
     const [total, rows] = await Promise.all([
       prisma.patient.count({ where }),
@@ -71,6 +91,7 @@ patientsRouter.get("/", async (req, res, next) => {
         lastName: p.lastName,
         phone: p.phone,
         age: p.ageYears,
+        dob: p.dob,
         sex: p.sex,
         address: [p.addressLine1, p.city, p.state, p.pincode].filter(Boolean).join(", "),
         status: p.status,

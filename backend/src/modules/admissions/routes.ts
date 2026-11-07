@@ -32,14 +32,22 @@ const createSchema = z.object({
 admissionsRouter.get("/", async (req, res, next) => {
   try {
     const hospitalId = req.user!.hospitalId;
-    const status = req.query.status ? String(req.query.status) : undefined;
+    const statusRaw = req.query.status ? String(req.query.status) : "";
+    const statuses = statusRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const q = String(req.query.q || "").trim();
     const page = Math.max(1, Number(req.query.page || 1));
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize || 20)));
 
     const where = {
       hospitalId,
-      ...(status ? { status: status as any } : {}),
+      ...(statuses.length === 1
+        ? { status: statuses[0] as any }
+        : statuses.length > 1
+          ? { status: { in: statuses as any[] } }
+          : {}),
       ...(q
         ? {
             OR: [
@@ -55,14 +63,32 @@ admissionsRouter.get("/", async (req, res, next) => {
       prisma.admission.count({ where }),
       prisma.admission.findMany({
         where,
-        include: {
-          patient: true,
-          department: true,
-          practitioner: true,
-          currentBed: { include: { room: true } },
-          advances: true,
-          charges: { where: { status: "DRAFT" } },
-          invoices: { where: { status: { not: "CANCELLED" } }, orderBy: { createdAt: "desc" }, take: 1 },
+        select: {
+          id: true,
+          ipNumber: true,
+          status: true,
+          admittedAt: true,
+          dischargedAt: true,
+          patientId: true,
+          primaryDiagnosis: true,
+          roomCategory: true,
+          patient: { select: { displayName: true, uhid: true } },
+          department: { select: { name: true } },
+          practitioner: { select: { name: true } },
+          currentBed: {
+            select: {
+              code: true,
+              room: { select: { name: true, category: true } },
+            },
+          },
+          advances: { select: { balance: true } },
+          charges: { where: { status: "DRAFT" }, select: { lineTotal: true } },
+          invoices: {
+            where: { status: { not: "CANCELLED" } },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, number: true, status: true, outstanding: true },
+          },
         },
         orderBy: { admittedAt: "desc" },
         skip: (page - 1) * pageSize,

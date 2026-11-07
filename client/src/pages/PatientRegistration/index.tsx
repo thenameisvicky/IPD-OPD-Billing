@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { DataTable } from "../../components/common/dataTable";
 import { healthcareApi } from "../../api/healthcare";
 import {
@@ -6,6 +7,7 @@ import {
   buttonSecondaryClass,
   Field,
   inputClass,
+  Fill,
   PageShell,
 } from "../../components/hospital/PageShell";
 
@@ -15,35 +17,66 @@ const emptyForm = {
   age: "",
   gender: "MALE",
   phone: "",
+  dob: "",
   address: "",
   city: "",
   state: "",
   pincode: "",
 };
 
+const emptySearch = { name: "", phone: "", dob: "" };
+
 export default function PatientRegistrationPage() {
   const [patients, setPatients] = useState<any[]>([]);
-  const [query, setQuery] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [search, setSearch] = useState(emptySearch);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [filteredMode, setFilteredMode] = useState(false);
 
-  const load = async (q = query) => {
+  const loadAll = async () => {
     setLoading(true);
-    const res = await healthcareApi.searchPatients(q);
+    const res = await healthcareApi.searchPatients({ pageSize: 100 });
+    setLoading(false);
+    if (!res.ok) {
+      setError(res.message || "Failed to load patients");
+      return;
+    }
+    setError("");
+    setFilteredMode(false);
+    setPatients(res.data || []);
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const runSearch = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!search.name && !search.phone && !search.dob) {
+      setError("Enter at least one of Name, Phone, or DOB");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const res = await healthcareApi.searchPatients({
+      ...(search.name ? { name: search.name } : {}),
+      ...(search.phone ? { phone: search.phone } : {}),
+      ...(search.dob ? { dob: search.dob } : {}),
+      pageSize: 100,
+    });
     setLoading(false);
     if (!res.ok) {
       setError(res.message || "Search failed");
       return;
     }
-    setError("");
     setPatients(res.data || []);
+    setFilteredMode(true);
+    setSearchOpen(false);
   };
-
-  useEffect(() => {
-    load("");
-  }, []);
 
   const registerPatient = async (event: FormEvent) => {
     event.preventDefault();
@@ -51,9 +84,10 @@ export default function PatientRegistrationPage() {
     const res = await healthcareApi.createPatient({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim() || null,
-      ageYears: Number(form.age),
+      ageYears: form.age ? Number(form.age) : null,
       sex: form.gender,
       phone: form.phone.trim(),
+      dob: form.dob ? new Date(`${form.dob}T00:00:00`).toISOString() : null,
       addressLine1: form.address.trim(),
       city: form.city.trim() || null,
       state: form.state.trim() || null,
@@ -65,160 +99,191 @@ export default function PatientRegistrationPage() {
     }
     setMessage(`Registered ${res.data.displayName} as ${res.data.uhid}`);
     setForm(emptyForm);
-    await load(query);
+    setRegisterOpen(false);
+    await loadAll();
   };
 
   return (
     <PageShell
-      title="Patient Registration"
-      subtitle="Search by UHID / name / phone, or register a new patient"
       actions={
-        <div className="flex gap-2">
-          <input
-            className={`${inputClass} w-64`}
-            placeholder="Search UHID, name, phone"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") load(query);
-            }}
-          />
-          <button type="button" className={buttonSecondaryClass} onClick={() => load(query)}>
+        <div className="flex flex-wrap gap-2">
+          {filteredMode && (
+            <button type="button" className={buttonSecondaryClass} onClick={loadAll}>
+              Show all
+            </button>
+          )}
+          <button type="button" className={buttonSecondaryClass} onClick={() => setSearchOpen(true)}>
             Search
+          </button>
+          <button type="button" className={buttonPrimaryClass} onClick={() => setRegisterOpen(true)}>
+            Register patient
           </button>
         </div>
       }
     >
-      <div className="grid h-full min-h-0 grid-cols-1 gap-3 xl:grid-cols-[380px_1fr]">
-        <form onSubmit={registerPatient} className="space-y-3 border border-slate-300 bg-white p-3">
-          <h2 className="text-[16px] font-bold uppercase tracking-[0.14em] text-slate-800">
-            New patient
-          </h2>
-          {message && (
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[16px] font-bold text-emerald-800">
-              {message}
+      {message && (
+        <div className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-[15px] font-bold text-emerald-800">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="shrink-0 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[15px] font-bold text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <Fill>
+        {loading ? (
+          <div className="p-3 text-[15px] font-semibold text-slate-600">Loading…</div>
+        ) : (
+          <DataTable
+            data={{
+              columns: ["UHID", "Name", "Age", "DOB", "Gender", "Phone", "Address"],
+              rows: patients.map((patient) => [
+                patient.uhid,
+                patient.name,
+                patient.age ?? "—",
+                patient.dob ? dayjs(patient.dob).format("DD-MMM-YYYY") : "—",
+                patient.sex,
+                patient.phone || "—",
+                patient.address || "—",
+              ]),
+              rawItems: patients,
+            }}
+          />
+        )}
+      </Fill>
+
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <form
+            onSubmit={runSearch}
+            className="w-full max-w-md space-y-3 border border-slate-300 bg-white p-4 shadow-xl"
+          >
+            <h2 className="text-[16px] font-bold uppercase tracking-[0.12em]">Search patients</h2>
+            <p className="text-[13px] font-semibold text-slate-600">
+              Provide any one of Name, Phone, or Date of birth.
+            </p>
+            <Field label="Name">
+              <input
+                className={inputClass}
+                value={search.name}
+                onChange={(e) => setSearch({ ...search, name: e.target.value })}
+              />
+            </Field>
+            <Field label="Phone">
+              <input
+                className={inputClass}
+                value={search.phone}
+                onChange={(e) => setSearch({ ...search, phone: e.target.value })}
+              />
+            </Field>
+            <Field label="Date of birth">
+              <input
+                type="date"
+                className={inputClass}
+                value={search.dob}
+                onChange={(e) => setSearch({ ...search, dob: e.target.value })}
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className={buttonSecondaryClass}
+                onClick={() => setSearchOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className={buttonPrimaryClass}>
+                Search
+              </button>
             </div>
-          )}
-          {error && (
-            <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[16px] font-bold text-rose-700">
-              {error}
-            </div>
-          )}
-          <Field label="First name">
-            <input
-              required
-              className={inputClass}
-              value={form.firstName}
-              onChange={(event) => setForm({ ...form, firstName: event.target.value })}
-            />
-          </Field>
-          <Field label="Last name">
-            <input
-              className={inputClass}
-              value={form.lastName}
-              onChange={(event) => setForm({ ...form, lastName: event.target.value })}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Age">
+          </form>
+        </div>
+      )}
+
+      {registerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <form
+            onSubmit={registerPatient}
+            className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-auto border border-slate-300 bg-white p-4 shadow-xl"
+          >
+            <h2 className="text-[16px] font-bold uppercase tracking-[0.12em]">Register patient</h2>
+            <Field label="First name">
               <input
                 required
-                type="number"
-                min={0}
                 className={inputClass}
-                value={form.age}
-                onChange={(event) => setForm({ ...form, age: event.target.value })}
+                value={form.firstName}
+                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
               />
             </Field>
-            <Field label="Gender">
-              <select
+            <Field label="Last name">
+              <input
                 className={inputClass}
-                value={form.gender}
-                onChange={(event) => setForm({ ...form, gender: event.target.value })}
+                value={form.lastName}
+                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Age">
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass}
+                  value={form.age}
+                  onChange={(e) => setForm({ ...form, age: e.target.value })}
+                />
+              </Field>
+              <Field label="Gender">
+                <select
+                  className={inputClass}
+                  value={form.gender}
+                  onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                >
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </Field>
+            </div>
+            <Field label="DOB">
+              <input
+                type="date"
+                className={inputClass}
+                value={form.dob}
+                onChange={(e) => setForm({ ...form, dob: e.target.value })}
+              />
+            </Field>
+            <Field label="Phone">
+              <input
+                required
+                className={inputClass}
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </Field>
+            <Field label="Address">
+              <textarea
+                className={`${inputClass} min-h-[72px]`}
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </Field>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className={buttonSecondaryClass}
+                onClick={() => setRegisterOpen(false)}
               >
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-                <option value="UNKNOWN">Unknown</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="Phone">
-            <input
-              required
-              className={inputClass}
-              value={form.phone}
-              onChange={(event) => setForm({ ...form, phone: event.target.value })}
-            />
-          </Field>
-          <Field label="Address">
-            <textarea
-              className={`${inputClass} min-h-[72px]`}
-              value={form.address}
-              onChange={(event) => setForm({ ...form, address: event.target.value })}
-            />
-          </Field>
-          <div className="grid grid-cols-3 gap-2">
-            <Field label="City">
-              <input
-                className={inputClass}
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-              />
-            </Field>
-            <Field label="State">
-              <input
-                className={inputClass}
-                value={form.state}
-                onChange={(e) => setForm({ ...form, state: e.target.value })}
-              />
-            </Field>
-            <Field label="PIN">
-              <input
-                className={inputClass}
-                value={form.pincode}
-                onChange={(e) => setForm({ ...form, pincode: e.target.value })}
-              />
-            </Field>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className={buttonPrimaryClass}>
-              Register patient
-            </button>
-            <button
-              type="button"
-              className={buttonSecondaryClass}
-              onClick={() => {
-                setForm(emptyForm);
-                setMessage("");
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-
-        <div className="min-h-0">
-          {loading ? (
-            <div className="p-3 text-[15px] font-semibold text-slate-600">Searching…</div>
-          ) : (
-            <DataTable
-              data={{
-                columns: ["UHID", "Name", "Age", "Gender", "Phone", "Address"],
-                rows: patients.map((patient) => [
-                  patient.uhid,
-                  patient.name,
-                  patient.age ?? "—",
-                  patient.sex,
-                  patient.phone || "—",
-                  patient.address || "—",
-                ]),
-                rawItems: patients,
-              }}
-            />
-          )}
+                Cancel
+              </button>
+              <button type="submit" className={buttonPrimaryClass}>
+                Save
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
+      )}
     </PageShell>
   );
 }
